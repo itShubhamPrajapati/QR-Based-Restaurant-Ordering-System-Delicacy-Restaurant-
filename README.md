@@ -278,9 +278,7 @@ del delicacy_restaurant.db
 uvicorn app:app --reload
 ```
 
-## 📄 License
 
-This project is developed for educational purposes as a college final year project.
 
 ## 🙏 Credits
 
