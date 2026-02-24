@@ -1,0 +1,411 @@
+import { useState, useEffect, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  Search, Plus, Edit, Trash2, Eye, EyeOff, Filter,
+  ChevronDown, X
+} from 'lucide-react'
+import {
+  getMenu, createMenuItem, updateMenuItem, deleteMenuItem, toggleMenuItemAvailability, resetMenu
+} from '../../lib/api'
+import { useToastStore } from '../../store/store'
+
+const categories = [
+  { id: 'all', name: 'All' },
+  { id: 'soups', name: 'Soups' },
+  { id: 'starters', name: 'Starters' },
+  { id: 'main_course', name: 'Main Course' },
+  { id: 'biryani', name: 'Biryani' },
+  { id: 'rice_noodles', name: 'Rice & Noodles' },
+  { id: 'rolls', name: 'Rolls' },
+  { id: 'breads', name: 'Breads' },
+  { id: 'beverages', name: 'Beverages' },
+]
+
+export default function MenuManagement() {
+  const [menu, setMenu] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [editingItem, setEditingItem] = useState(null)
+  const { addToast } = useToastStore()
+
+  const fetchMenu = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await getMenu({ category: selectedCategory !== 'all' ? selectedCategory : undefined })
+      setMenu(data || [])
+    } catch (error) {
+      console.error('Failed to fetch menu:', error)
+      addToast({ type: 'error', message: 'Failed to load menu' })
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedCategory, addToast])
+
+  useEffect(() => { fetchMenu() }, [fetchMenu])
+
+  const handleResetMenu = async () => {
+    if (!window.confirm('This will reset the menu to default items. Continue?')) return
+    try {
+      const result = await resetMenu()
+      addToast({ type: 'success', message: result.message })
+      fetchMenu()
+    } catch (error) {
+      addToast({ type: 'error', message: 'Failed to reset menu' })
+    }
+  }
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this item?')) return
+    try {
+      await deleteMenuItem(id)
+      addToast({ type: 'success', message: 'Item deleted successfully' })
+      fetchMenu()
+    } catch (error) {
+      addToast({ type: 'error', message: 'Failed to delete item' })
+    }
+  }
+
+  const handleToggleAvailability = async (id) => {
+    try {
+      await toggleMenuItemAvailability(id)
+      addToast({ type: 'success', message: 'Availability updated' })
+      fetchMenu()
+    } catch (error) {
+      addToast({ type: 'error', message: 'Failed to update availability' })
+    }
+  }
+
+  const filteredMenu = menu.filter(item =>
+    item.name.toLowerCase().includes(search.toLowerCase())
+  )
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Menu Management</h1>
+          <p className="text-gray-500">Manage your restaurant menu items</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleResetMenu}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+          >
+            Reset Menu
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+          >
+            <Plus className="w-5 h-5" />
+            Add Item
+          </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search items..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700"
+          />
+        </div>
+        <select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className="px-4 py-2.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700"
+        >
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>{cat.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Menu Grid */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-40 skeleton rounded-xl" />
+          ))}
+        </div>
+      ) : filteredMenu.length === 0 ? (
+        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl">
+          <p className="text-gray-500">No items found</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredMenu.map((item) => (
+            <MenuCard
+              key={item.id}
+              item={item}
+              onEdit={() => setEditingItem(item)}
+              onDelete={() => handleDelete(item.id)}
+              onToggle={() => handleToggleAvailability(item.id)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Add/Edit Modal */}
+      <AnimatePresence>
+        {(showAddModal || editingItem) && (
+          <MenuModal
+            item={editingItem}
+            onClose={() => {
+              setShowAddModal(false)
+              setEditingItem(null)
+            }}
+            onSave={() => {
+              setShowAddModal(false)
+              setEditingItem(null)
+              fetchMenu()
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function MenuCard({ item, onEdit, onDelete, onToggle }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border ${!item.is_available ? 'border-red-200' : 'border-transparent'}`}
+    >
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{item.is_vegetarian ? '🥬' : '🍗'}</span>
+          <h3 className="font-semibold text-gray-900 dark:text-white">{item.name}</h3>
+        </div>
+        <button onClick={onToggle} className="p-1">
+          {item.is_available ? (
+            <Eye className="w-4 h-4 text-green-500" />
+          ) : (
+            <EyeOff className="w-4 h-4 text-red-500" />
+          )}
+        </button>
+      </div>
+      
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{item.description}</p>
+      
+      <div className="flex items-center justify-between">
+        <div className="text-sm">
+          {item.has_half_full ? (
+            <div className="flex gap-2 text-gray-600 dark:text-gray-300">
+              <span>Half: ₹{item.price_half}</span>
+              <span>|</span>
+              <span>Full: ₹{item.price_full}</span>
+            </div>
+          ) : (
+            <span className="font-bold text-primary-600">₹{item.price}</span>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onEdit}
+            className="p-2 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg"
+          >
+            <Edit className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onDelete}
+            className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+function MenuModal({ item, onClose, onSave }) {
+  const [formData, setFormData] = useState({
+    name: item?.name || '',
+    description: item?.description || '',
+    price: item?.price || '',
+    price_half: item?.price_half || '',
+    price_full: item?.price_full || '',
+    category_id: item?.category_id || 1,
+    subcategory: item?.subcategory || '',
+    is_vegetarian: item?.is_vegetarian || false,
+    has_half_full: item?.has_half_full || false,
+    preparation_time: item?.preparation_time || 15,
+  })
+  const [loading, setLoading] = useState(false)
+  const { addToast } = useToastStore()
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const data = {
+        ...formData,
+        price: parseFloat(formData.price) || null,
+        price_half: parseFloat(formData.price_half) || null,
+        price_full: parseFloat(formData.price_full) || null,
+        category_id: parseInt(formData.category_id),
+        preparation_time: parseInt(formData.preparation_time),
+      }
+
+      if (item) {
+        await updateMenuItem(item.id, data)
+        addToast({ type: 'success', message: 'Item updated successfully' })
+      } else {
+        await createMenuItem(data)
+        addToast({ type: 'success', message: 'Item created successfully' })
+      }
+      onSave()
+    } catch (error) {
+      addToast({ type: 'error', message: 'Failed to save item' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/50"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="relative bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+          {item ? 'Edit Item' : 'Add New Item'}
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+              rows={3}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price</label>
+              <input
+                type="number"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                disabled={formData.has_half_full}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prep Time (min)</label>
+              <input
+                type="number"
+                value={formData.preparation_time}
+                onChange={(e) => setFormData({ ...formData, preparation_time: e.target.value })}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Half Price</label>
+              <input
+                type="number"
+                value={formData.price_half}
+                onChange={(e) => setFormData({ ...formData, price_half: e.target.value })}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                disabled={!formData.has_half_full}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Price</label>
+              <input
+                type="number"
+                value={formData.price_full}
+                onChange={(e) => setFormData({ ...formData, price_full: e.target.value })}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                disabled={!formData.has_half_full}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={formData.has_half_full}
+                onChange={(e) => setFormData({ ...formData, has_half_full: e.target.checked })}
+                className="rounded"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">Has Half/Full</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={formData.is_vegetarian}
+                onChange={(e) => setFormData({ ...formData, is_vegetarian: e.target.checked })}
+                className="rounded"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">Vegetarian</span>
+            </label>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 py-2 px-4 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+            >
+              {loading ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  )
+}
