@@ -5,10 +5,10 @@ import { getTables, createTable, updateTableStatus, deleteTable } from '../../li
 import { useToastStore } from '../../store/store'
 
 const statusColors = {
-  available: 'bg-green-100 text-green-800',
-  occupied: 'bg-red-100 text-red-800',
-  reserved: 'bg-yellow-100 text-yellow-800',
-  maintenance: 'bg-gray-100 text-gray-800'
+  available: 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400',
+  occupied: 'bg-rose-500/10 border border-rose-500/20 text-rose-400',
+  reserved: 'bg-amber-500/10 border border-amber-500/20 text-amber-400',
+  maintenance: 'bg-white/5 border border-white/10 text-slate-400'
 }
 
 export default function TableManagement() {
@@ -65,50 +65,51 @@ export default function TableManagement() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 relative z-10">
+      {/* Header Container */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 bg-white/[0.02] backdrop-blur-3xl border border-white/10 rounded-[32px] shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_4px_25px_rgba(0,0,0,0.2)]">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Table Management</h1>
-          <p className="text-gray-500">Manage restaurant tables</p>
+          <h1 className="text-2xl font-black tracking-wide text-white uppercase">Table Layout</h1>
+          <p className="text-sm text-gray-400 font-medium mt-0.5">Real-time store table seating layouts</p>
         </div>
         <div className="flex gap-3">
           <button
             onClick={fetchTables}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white rounded-2xl transition-all duration-300 font-semibold text-sm"
           >
-            <RefreshCw className="w-5 h-5" />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-pink-500 hover:from-primary-600 hover:to-pink-600 text-white rounded-2xl shadow-md shadow-primary-500/10 hover:shadow-lg hover:shadow-primary-500/20 transition-all duration-300 font-extrabold text-sm uppercase tracking-wider"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4" />
             Add Table
           </button>
         </div>
       </div>
 
-      {/* Table Grid */}
+      {/* Grid container with glass indicators */}
       {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
           {[...Array(10)].map((_, i) => (
-            <div key={i} className="h-32 skeleton rounded-xl" />
+            <div key={i} className="h-36 bg-white/[0.02] border border-white/10 backdrop-blur-3xl rounded-[32px] shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] animate-pulse" />
           ))}
         </div>
       ) : tables.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl">
-          <p className="text-gray-500">No tables added yet</p>
+        <div className="text-center py-16 bg-white/[0.01] border border-white/5 backdrop-blur-3xl rounded-[32px] max-w-md mx-auto shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_30px_rgba(0,0,0,0.2)]">
+          <Users className="w-12 h-12 text-gray-500 mx-auto mb-4 opacity-50" />
+          <p className="text-gray-300 font-bold">No active tables found</p>
           <button
             onClick={() => setShowAddModal(true)}
-            className="mt-4 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+            className="mt-4 px-5 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-2xl font-bold transition-all text-xs uppercase"
           >
             Add First Table
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
           {tables.map((table) => (
             <TableCard
               key={table.id}
@@ -120,7 +121,7 @@ export default function TableManagement() {
         </div>
       )}
 
-      {/* Add Modal */}
+      {/* Glassmorphic Add table Modal overlay */}
       {showAddModal && (
         <AddTableModal
           onClose={() => setShowAddModal(false)}
@@ -136,37 +137,45 @@ function TableCard({ table, onStatusChange, onDelete }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
+      layout
+      initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700"
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_10px_30px_rgba(0,0,0,0.25)] hover:shadow-[inset_0_1px_2px_rgba(255,255,255,0.12),0_15px_40px_rgba(0,0,0,0.35)] transition-all duration-300 rounded-[32px] p-5 flex flex-col justify-between h-full"
     >
-      <div className="flex items-center justify-between mb-3">
-        <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-xl flex items-center justify-center">
-          <span className="text-xl font-bold text-primary-600">{table.table_number}</span>
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="w-12 h-12 bg-gradient-to-br from-primary-500/10 to-pink-500/10 border border-primary-500/20 rounded-2xl flex items-center justify-center shadow-inner">
+            <span className="text-lg font-black text-white">{table.table_number}</span>
+          </div>
+          
+          <select
+            value={table.status}
+            onChange={(e) => onStatusChange(table.id, e.target.value)}
+            className={`text-[10px] px-2.5 py-1.5 rounded-full cursor-pointer font-extrabold uppercase tracking-wider bg-slate-950 border focus:ring-0 ${statusColors[table.status]}`}
+          >
+            {statuses.map((s) => (
+              <option key={s} value={s} className="bg-slate-950 text-slate-100 font-semibold">{s}</option>
+            ))}
+          </select>
         </div>
-        <select
-          value={table.status}
-          onChange={(e) => onStatusChange(table.id, e.target.value)}
-          className={`text-xs px-2 py-1 rounded-full border-0 cursor-pointer ${statusColors[table.status]}`}
-        >
-          {statuses.map((s) => (
-            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-          ))}
-        </select>
+
+        <div className="flex items-center gap-2 text-gray-400 mb-4 px-1">
+          <Users className="w-4 h-4 text-indigo-400" />
+          <span className="text-xs font-semibold">Capacity: {table.capacity} guests</span>
+        </div>
       </div>
 
-      <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-3">
-        <Users className="w-4 h-4" />
-        <span className="text-sm">Capacity: {table.capacity}</span>
-      </div>
-
-      <div className="flex gap-2">
-        <button
+      <div className="border-t border-white/5 pt-3">
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => onDelete(table.id)}
-          className="flex-1 py-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg text-sm"
+          className="w-full py-2 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 text-rose-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
         >
-          <Trash2 className="w-4 h-4 mx-auto" />
-        </button>
+          <Trash2 className="w-3.5 h-3.5" />
+          Delete
+        </motion.button>
       </div>
     </motion.div>
   )
@@ -194,58 +203,69 @@ function AddTableModal({ onClose, onAdd }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-sm">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Add New Table</h2>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm" 
+        onClick={onClose} 
+      />
+      <motion.div
+        initial={{ scale: 0.95, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.95, y: 20 }}
+        className="relative bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-6 w-full max-w-sm shadow-2xl text-slate-100"
+      >
+        <h2 className="text-lg font-bold text-white mb-6 tracking-wide uppercase border-b border-white/10 pb-3">Add New Table</h2>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
               Table Number
             </label>
             <input
               type="number"
               value={formData.table_number}
               onChange={(e) => setFormData({ ...formData, table_number: e.target.value })}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+              className="w-full px-4 py-2.5 rounded-2xl border border-white/10 bg-slate-950/60 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 text-sm font-semibold"
               required
               min="1"
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Capacity
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
+              Capacity (Guests)
             </label>
             <input
               type="number"
               value={formData.capacity}
               onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+              className="w-full px-4 py-2.5 rounded-2xl border border-white/10 bg-slate-950/60 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 text-sm font-semibold"
               required
               min="1"
               max="20"
             />
           </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-4 border-t border-white/5 mt-6">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="flex-1 py-2.5 px-4 border border-white/10 rounded-2xl text-xs font-bold uppercase tracking-wider hover:bg-white/5 transition-all text-gray-300 hover:text-white"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-2 px-4 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+              className="flex-1 py-2.5 px-4 bg-gradient-to-r from-primary-500 to-pink-500 text-white rounded-2xl hover:opacity-90 disabled:opacity-50 text-xs font-extrabold uppercase tracking-wider shadow-md shadow-primary-500/20"
             >
               {loading ? 'Adding...' : 'Add Table'}
             </button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   )
 }

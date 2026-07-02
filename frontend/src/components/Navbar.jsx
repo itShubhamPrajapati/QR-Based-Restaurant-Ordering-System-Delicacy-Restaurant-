@@ -1,12 +1,11 @@
-import { Menu, ShoppingCart, Sun, Moon, Home, ChefHat, Settings } from 'lucide-react'
+import { Menu, ShoppingCart, Home, ChefHat, Settings } from 'lucide-react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { useCartStore, useThemeStore } from '../store/store'
+import { useCartStore } from '../store/store'
 import { motion } from 'framer-motion'
 
 export default function Navbar({ showMenuToggle = true, showCart = true }) {
   const { tableNumber } = useParams()
   const location = useLocation()
-  const { darkMode, toggleDarkMode } = useThemeStore()
   const { getItemCount } = useCartStore()
   
   const itemCount = getItemCount()
@@ -90,19 +89,7 @@ export default function Navbar({ showMenuToggle = true, showCart = true }) {
                 <Settings className="w-5 h-5 text-gray-600 dark:text-gray-300" />
               </Link>
             )}
-            
-            {/* Dark Mode Toggle */}
-            <button
-              onClick={toggleDarkMode}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              title={darkMode ? 'Light Mode' : 'Dark Mode'}
-            >
-              {darkMode ? (
-                <Sun className="w-5 h-5 text-yellow-500" />
-              ) : (
-                <Moon className="w-5 h-5 text-gray-600" />
-              )}
-            </button>
+
             
             {/* Cart Button - Only show for customer view */}
             {showCart && isCustomerView && itemCount > 0 && (

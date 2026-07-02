@@ -25,11 +25,18 @@ const API_BASE_URL = getApiBaseUrl()
 async function fetchAPI(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`
   
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  }
+  
+  const token = localStorage.getItem('admin_token')
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  
   const config = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
     ...options,
   }
   
@@ -37,6 +44,9 @@ async function fetchAPI(endpoint, options = {}) {
     const response = await fetch(url, config)
     
     if (!response.ok) {
+      if (response.status === 401 && endpoint !== '/api/admin/login') {
+        localStorage.removeItem('admin_token')
+      }
       const errorData = await response.json().catch(() => ({}))
       throw new Error(errorData.detail || `HTTP error ${response.status}`)
     }
@@ -297,6 +307,17 @@ export async function generateAllQRCodes(maxTables = 20) {
   return fetchAPI(`/api/admin/generate-all-qr?max_tables=${maxTables}`)
 }
 
+export async function adminLogin(username, password) {
+  const response = await fetchAPI('/api/admin/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password })
+  })
+  if (response.access_token) {
+    localStorage.setItem('admin_token', response.access_token)
+  }
+  return response
+}
+
 export default {
   checkHealth,
   getCategories,
@@ -337,4 +358,5 @@ export default {
   getBill,
   generateQRCode,
   generateAllQRCodes,
+  adminLogin,
 }

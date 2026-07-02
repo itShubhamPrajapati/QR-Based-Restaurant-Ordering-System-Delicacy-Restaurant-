@@ -26,8 +26,17 @@ export const useWebSocket = (clientType, identifier = null, onMessage) => {
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return
 
-    // Use API URL for WebSocket connection
-    const wsUrl = `${apiUrlRef.current.replace('http://', 'ws://').replace('https://', 'wss://')}/ws/${clientType}${identifier ? `?identifier=${identifier}` : ''}`
+    // Use API URL for WebSocket connection with token query parameters
+    const token = localStorage.getItem('admin_token')
+    const queryParams = []
+    if (identifier) {
+      queryParams.push(`identifier=${identifier}`)
+    }
+    if (token) {
+      queryParams.push(`token=${token}`)
+    }
+    const queryStr = queryParams.length > 0 ? `?${queryParams.join('&')}` : ''
+    const wsUrl = `${apiUrlRef.current.replace('http://', 'ws://').replace('https://', 'wss://')}/ws/${clientType}${queryStr}`
     
     try {
       wsRef.current = new WebSocket(wsUrl)
