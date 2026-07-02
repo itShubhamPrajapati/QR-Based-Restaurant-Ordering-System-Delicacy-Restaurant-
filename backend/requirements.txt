@@ -6,7 +6,7 @@ python-multipart==0.0.6
 python-dotenv==1.0.0 
 websockets==12.0 
 qrcode==7.4.2 
-razorpay==1.2.0 
+razorpay
 pillow>=10.4.0
 aiosqlite==0.19.0
 pyjwt==2.8.0
