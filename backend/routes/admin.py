@@ -433,7 +433,9 @@ async def generate_qr_code(
     table_number: int,
     current_user: User = Depends(get_current_user)
 ):
-    """Generate QR code for table"""
+    """Generate QR code for table dynamically in memory (stateless)"""
+    import io
+    
     # Validate table number
     if table_number < 1:
         raise HTTPException(status_code=400, detail="Table number must be at least 1")
@@ -456,19 +458,24 @@ async def generate_qr_code(
     
     img = qr.make_image(fill_color="black", back_color="white")
     
-    # Save to file
-    filename = f"backend/static/qr_table_{table_number}.png"
-    img.save(filename)
+    # Save image to in-memory bytes buffer
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
     
-    return FileResponse(filename, media_type="image/png")
+    return StreamingResponse(buf, media_type="image/png")
 
 @router.get("/api/admin/generate-all-qr")
 async def generate_all_qr_codes(
     max_tables: int = Query(default=20, le=50),
     current_user: User = Depends(get_current_user)
 ):
-    """Generate QR codes for all tables"""
+    """Generate QR codes for all tables in memory and return as JSON list of base64 data URLs"""
+    import io
+    import base64
+    
     max_tables = min(max_tables, int(os.getenv("MAX_TABLES", "20")))
+    qr_codes = []
     
     for table in range(1, max_tables + 1):
         url = f"{FRONTEND_URL}/table/{table}"
@@ -483,7 +490,20 @@ async def generate_all_qr_codes(
         qr.make(fit=True)
         
         img = qr.make_image(fill_color="black", back_color="white")
-        filename = f"backend/static/qr_table_{table}.png"
-        img.save(filename)
+        
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        img_str = base64.b64encode(buf.getvalue()).decode("utf-8")
+        
+        qr_codes.append({
+            "table_number": table,
+            "url": url,
+            "qr_code_base64": f"data:image/png;base64,{img_str}"
+        })
     
-    return {"message": f"QR codes generated for tables 1-{max_tables}", "count": max_tables}
+    return {
+        "message": f"QR codes generated for tables 1-{max_tables}",
+        "count": max_tables,
+        "qr_codes": qr_codes
+    }
+

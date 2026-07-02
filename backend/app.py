@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.future import select
 
-from database import create_tables, async_session_maker
+from database import create_tables, async_session_maker, FRONTEND_URL
 from models import Category, MenuItem
 from routes.menu import get_default_menu
 from routes import menu, orders, admin, websockets
@@ -18,24 +18,51 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# CORS middleware - Allow all origins for development
+# CORS middleware - Strict production-ready CORS configuration
+# Allowed origins are fetched dynamically from environment variables
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+]
+
+# Add Vercel production FRONTEND_URL if set in environment
+if FRONTEND_URL and FRONTEND_URL not in origins:
+    origins.append(FRONTEND_URL)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Create static folder for QR codes
-os.makedirs("backend/static", exist_ok=True)
-app.mount("/static", StaticFiles(directory="backend/static"), name="static")
+# Safe mounting of static directory (handles read-only filesystems gracefully)
+static_path = Path("backend/static")
+if not static_path.exists():
+    try:
+        os.makedirs(static_path, exist_ok=True)
+    except Exception as e:
+        print(f"Warning: Could not create static directory: {e}")
 
-# ===================== HEALTH CHECK =====================
+if static_path.exists():
+    app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+
+# ===================== PRODUCTION ROOT & HEALTH CHECK =====================
+
+@app.get("/")
+async def root():
+    """Root endpoint for Railway deployment verification"""
+    return {
+        "status": "API is running",
+        "timestamp": datetime.utcnow().isoformat(),
+        "environment": os.getenv("RAILWAY_ENVIRONMENT", "production" if os.getenv("PORT") else "development")
+    }
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint"""
+    """Detailed health check endpoint"""
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
 # Include all the sub-routers
@@ -44,7 +71,7 @@ app.include_router(orders.router)
 app.include_router(admin.router)
 app.include_router(websockets.router)
 
-# ===================== STATIC FILES SERVING =====================
+# ===================== STATIC FILES SERVING (PRODUCTION BUNDLE) =====================
 
 frontend_path = Path("frontend/dist")
 if frontend_path.exists():
@@ -79,7 +106,7 @@ async def startup_event():
             session.add(default_admin)
             await session.commit()
             print("Auto-seeded default admin user (admin / adminpassword)!")
-
+ 
         if menu_count == 0:
             # First time setup - seed menu
             menu_items = get_default_menu()
@@ -116,4 +143,8 @@ async def startup_event():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Dynamic Port Binding for Railway deployment
+    port = int(os.getenv("PORT", 8000))
+    host = os.getenv("HOST", "0.0.0.0")
+    print(f"Starting server on http://{host}:{port}")
+    uvicorn.run("app:app", host=host, port=port, reload=True)

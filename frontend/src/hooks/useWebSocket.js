@@ -1,18 +1,25 @@
 import { useEffect, useRef, useCallback } from 'react'
 
-// Get WebSocket URL dynamically
+// Get WebSocket URL dynamically based on environment or current host
 function getWebSocketUrl() {
-  const hostname = window.location.hostname
-  const port = 8000 // Backend port
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${hostname}:${port}`
-}
-
-function getApiBaseUrl() {
-  const hostname = window.location.hostname
-  const port = 8000
-  const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:'
-  return `${protocol}//${hostname}:${port}`
+  const envUrl = import.meta.env.VITE_API_URL
+  let apiBaseUrl = ''
+  
+  if (envUrl) {
+    apiBaseUrl = envUrl
+  } else {
+    // Dynamic local fallback if not defined
+    const hostname = window.location.hostname
+    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:'
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      apiBaseUrl = 'http://localhost:8000'
+    } else {
+      apiBaseUrl = `${protocol}//${hostname}:8000`
+    }
+  }
+  
+  // Dynamically replace HTTP/HTTPS with WS/WSS
+  return apiBaseUrl.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:')
 }
 
 export const useWebSocket = (clientType, identifier = null, onMessage) => {
@@ -20,9 +27,7 @@ export const useWebSocket = (clientType, identifier = null, onMessage) => {
   const reconnectTimeoutRef = useRef(null)
   const reconnectAttemptsRef = useRef(0)
   const maxReconnectAttempts = 5
-  const wsUrlRef = useRef(getWebSocketUrl())
-  const apiUrlRef = useRef(getApiBaseUrl())
-
+  
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return
 
@@ -36,7 +41,11 @@ export const useWebSocket = (clientType, identifier = null, onMessage) => {
       queryParams.push(`token=${token}`)
     }
     const queryStr = queryParams.length > 0 ? `?${queryParams.join('&')}` : ''
-    const wsUrl = `${apiUrlRef.current.replace('http://', 'ws://').replace('https://', 'wss://')}/ws/${clientType}${queryStr}`
+    
+    // Resolve dynamic WebSocket URL
+    const baseWsUrl = getWebSocketUrl()
+    const wsUrl = `${baseWsUrl}/ws/${clientType}${queryStr}`
+
     
     try {
       wsRef.current = new WebSocket(wsUrl)

@@ -4,20 +4,22 @@
  */
 
 // Get the API base URL dynamically based on the current host
+// Get the API base URL dynamically based on environment variables or current host
 function getApiBaseUrl() {
   const envUrl = import.meta.env.VITE_API_URL
   if (envUrl) return envUrl
   
-  // If running on mobile or external device, use the current host
-  if (import.meta.env.DEV) {
-    const hostname = window.location.hostname
-    // If hostname is not localhost, use it for API
-    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      return `http://${hostname}:8000`
-    }
+  // Fallback: If not set in environment, determine dynamically
+  const hostname = window.location.hostname
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:8000'
   }
-  return 'http://localhost:8000'
+  
+  // Dynamic fallback for local network access (e.g. mobile testing)
+  const protocol = window.location.protocol
+  return `${protocol}//${hostname}:8000`
 }
+
 
 const API_BASE_URL = getApiBaseUrl()
 
